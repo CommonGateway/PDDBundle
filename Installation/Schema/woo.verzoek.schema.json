@@ -2,7 +2,7 @@
   "title": "Verzoek",
   "$id": "https://commongateway.nl/woo.verzoek.schema.json",
   "$schema": "https://docs.commongateway.nl/schemas/Entity.schema.json",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "type": "object",
   "description": "Verzoek object.",
   "required": [],
@@ -42,6 +42,30 @@
       "description": "format: Y-m-d"
     },
     "termijnoverschrijding": {
+      "type": "string"
+    },
+    "organisatieonderdeel": {
+      "type": "string"
+    },
+    "functiebenaming": {
+      "type": "string"
+    },
+    "gedraging": {
+      "type": "string"
+    },
+    "bevindingen": {
+      "type": "string"
+    },
+    "oordeel": {
+      "type": "string"
+    },
+    "conclusies": {
+      "type": "string"
+    },
+    "opdrachtgever": {
+      "type": "string"
+    },
+    "onderdeelTaak": {
       "type": "string"
     }
   }
