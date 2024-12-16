@@ -14,6 +14,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 use Psr\Log\LoggerInterface;
 use App\Entity\Gateway as Source;
 use Smalot\PdfParser\Parser;
+use PhpOffice\PhpWord\IOFactory;
 
 /**
  * Service responsible for woo files.
@@ -204,6 +205,64 @@ class FileService
 
 
     /**
+     * Writes a temporary file for short use.
+     *
+     * Don't forget to unlink($tempFilePath) after using the file to remove the temporary file.
+     *
+     * @param File   $file          File to write a temporary file from.
+     * @param string $fileExtension Extension to write the file with.
+     * @param $base64Decoded File in its decoded form.
+     *
+     * @return string|null $tempFilePath The temporary file path.
+     */
+    private function createTemporaryFile(File $file, string $fileExtension, $base64Decoded): ?string
+    {
+        $tempFilePath = tempnam(sys_get_temp_dir(), $fileExtension);
+        if ($tempFilePath === false) {
+            $this->logger->error('Failed to create a temporary file '.$file->getName());
+            $this->style && $this->style->error('Failed to create a temporary file '.$file->getName());
+
+            return null;
+        }
+
+        file_put_contents($tempFilePath, $base64Decoded);
+
+        return $tempFilePath;
+
+    }//end createTemporaryFile()
+
+
+    /**
+     * Extracts text from a docx file.
+     *
+     * @param File $file          to get text from.
+     * @param $base64Decoded File in its decoded form.
+     *
+     * @return string
+     */
+    private function getTextFromDocx(File $file, $base64Decoded): string
+    {
+        $tempFilePath = $this->createTemporaryFile($file, 'docx', $base64Decoded);
+        if ($tempFilePath === null) {
+            return '';
+        }
+
+        $phpWord = IOFactory::load($tempFilePath);
+
+        $text = '';
+        foreach ($phpWord->getSections() as $section) {
+            $text .= $this->processElements($section->getElements(), $text);
+        }
+
+        // Remove temp file.
+        unlink($tempFilePath);
+
+        return $text;
+
+    }//end getTextFromDocx()
+
+
+    /**
      * Extracts text from a document (File).
      *
      * @param Value $value The value associated with the file.
@@ -218,26 +277,71 @@ class FileService
             return null;
         }
 
-        switch ($file->getMimeType()) {
-        case 'pdf':
-        case 'application/pdf':
-            try {
-                $pdf  = $this->pdfParser->parseContent(\Safe\base64_decode($file->getBase64()));
-                $text = $pdf->getText();
-            } catch (\Exception $e) {
-                $this->logger->error('Something went wrong extracting text from '.$file->getName().' '.$e->getMessage());
-                $this->style && $this->style->error('Something went wrong extracting text from '.$file->getName().' '.$e->getMessage());
+        $base64Decoded = \Safe\base64_decode($file->getBase64());
 
+        try {
+            switch ($file->getMimeType()) {
+            case 'pdf':
+            case 'application/pdf':
+                $pdf  = $this->pdfParser->parseContent($base64Decoded);
+                $text = $pdf->getText();
+                break;
+            case 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
+                $text = $this->getTextFromDocx($file, $base64Decoded);
+                break;
+            default:
                 $text = null;
             }
-            break;
-        default:
+        } catch (\Exception $e) {
+            $this->logger->error('Something went wrong extracting text from '.$file->getName().' '.$e->getMessage());
+            $this->style && $this->style->error('Something went wrong extracting text from '.$file->getName().' '.$e->getMessage());
+
+            $text = null;
+        }
+
+        if (empty($text) === true) {
             $text = null;
         }
 
         return $text;
 
     }//end getTextFromDocument()
+
+
+    /**
+     * Loops through docx elements to get the text from.
+     *
+     * @param $elements Docx elements.
+     * @param string $text     variable to extend.
+     *
+     * @return string $text
+     */
+    private function processElements($elements, string $text): string
+    {
+        foreach ($elements as $element) {
+            switch (get_class($element)) {
+            case 'PhpOffice\PhpWord\Element\TextRun':
+            case 'PhpOffice\PhpWord\Element\Cell':
+                $text .= $this->processElements($element->getElements(), $text);
+                break;
+
+            case 'PhpOffice\PhpWord\Element\Table':
+                foreach ($element->getRows() as $row) {
+                    foreach ($row->getCells() as $cell) {
+                        $text .= $this->processElements($cell->getElements(), $text);
+                    }
+                }
+                break;
+
+            case 'PhpOffice\PhpWord\Element\Text':
+                $text .= $element->getText();
+                break;
+            }
+        }
+
+        return $text;
+
+    }//end processElements()
 
 
     /**

@@ -385,6 +385,9 @@ class SyncXxllncCasesService
                 $mappedResult = $this->mappingService->mapping($mapping, $result);
                 // Map categories to prevent multiple variants of the same categorie.
                 $mappedResult = $this->mappingService->mapping($categorieMapping, $mappedResult);
+                if (isset($mappedResult['samenvatting']) === true) {
+                    $mappedResult['samenvatting'] = html_entity_decode($mappedResult['samenvatting']);
+                }
 
                 $validationErrors = $this->validationService->validateData($mappedResult, $schema, 'POST');
                 if ($validationErrors !== null) {
