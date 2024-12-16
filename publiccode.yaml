@@ -86,14 +86,14 @@ nl:
 dependsOn: 
   open: 
     - name: CommonGateway
-      versionMin: 1.3
-      versionMax: 2.0
-      version: 1.3.18
+      versionMin: 1.4
+      versionMax: 1.5
+      version: 1.4.13
       optional: false
     - name: CoreBundle
-      versionMin: 1.3
-      versionMax: 2.0
-      version: 1.3.18
+      versionMin: 1.4
+      versionMax: 1.5
+      version: 1.4.13
       optional: false
 roadmap: null
 inputTypes:
